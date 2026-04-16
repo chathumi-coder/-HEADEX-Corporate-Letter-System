@@ -28,7 +28,6 @@
 <p align="center">
 
 <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
-<img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white"/>
 <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white"/>
 <img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white"/>
 
@@ -46,6 +45,8 @@ letter-head-app/
 ├── uploads/
 ├── output/
 
+## Output
+<img width="1908" height="775" alt="Screenshot 2026-04-16 183140" src="https://github.com/user-attachments/assets/bf05f5e6-4e40-49e9-9eb8-a8167c318cdf" />
 
 ---
 
@@ -56,6 +57,4 @@ pip install flask PyPDF2 reportlab python-docx
 
 
 
-## Output
-<img width="1908" height="775" alt="Screenshot 2026-04-16 183140" src="https://github.com/user-attachments/assets/bf05f5e6-4e40-49e9-9eb8-a8167c318cdf" />
 
