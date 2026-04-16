@@ -1,20 +1,23 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox
+from flask import Flask, request, send_file
 from PyPDF2 import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from docx import Document
-import tempfile, os
+import tempfile, os, uuid
+from copy import deepcopy
 
-PAGE_WIDTH, PAGE_HEIGHT = A4
+app = Flask(__name__)
 
 # =========================
-# DOCX
+# DOCX READER
 # =========================
 def extract_docx(path):
     doc = Document(path)
     return "\n".join([p.text for p in doc.paragraphs])
 
+# =========================
+# GET TEXT
+# =========================
 def get_content(file_path):
     if file_path.endswith(".pdf"):
         reader = PdfReader(file_path)
@@ -29,159 +32,149 @@ def get_content(file_path):
     return ""
 
 # =========================
-# PDF CREATE
+# CREATE TEXT PDF
 # =========================
-def create_content_pdf(text, output_path):
+def create_pdf(text, output_path):
     c = canvas.Canvas(output_path, pagesize=A4)
 
-    TOP = 300
-    BOTTOM = 70
+    TOP = 750
+    BOTTOM = 80
     LEFT = 80
 
-    FONT = "Times-Roman"
-    SIZE = 12
-    LINE = 16
-
-    c.setFont(FONT, SIZE)
-
-    y = PAGE_HEIGHT - TOP
+    c.setFont("Helvetica", 11)
+    y = TOP
 
     for line in text.split("\n"):
         line = line.strip()
 
-        if not line:
-            y -= LINE
-            continue
+        if line:
+            c.drawString(LEFT, y, line[:110])
+            y -= 15
 
-        c.drawString(LEFT, y, line)
-        y -= LINE
-
-        if y < BOTTOM:
-            c.showPage()
-            c.setFont(FONT, SIZE)
-            y = PAGE_HEIGHT - TOP
+            if y < BOTTOM:
+                c.showPage()
+                c.setFont("Helvetica", 11)
+                y = TOP
 
     c.save()
 
 # =========================
-# MERGE
+# MERGE LETTERHEAD + TEXT
 # =========================
-def merge_pdf(letterhead_pdf, content_pdf, output_pdf):
+def merge_pdf(letter_pdf, content_pdf, output_pdf):
     writer = PdfWriter()
 
-    letter = PdfReader(letterhead_pdf)
+    letter = PdfReader(letter_pdf)
     content = PdfReader(content_pdf)
 
-    for i in range(len(content.pages)):
-        base = letter.pages[0]
-        cont = content.pages[i]
+    pages = max(len(letter.pages), len(content.pages))
 
-        base.merge_page(cont)
-        writer.add_page(base)
+    for i in range(pages):
+        base = letter.pages[i] if i < len(letter.pages) else letter.pages[0]
+        new_page = deepcopy(base)
+
+        if i < len(content.pages):
+            new_page.merge_page(content.pages[i])
+
+        writer.add_page(new_page)
 
     with open(output_pdf, "wb") as f:
         writer.write(f)
 
-def build_pdf(file_path, letterhead_pdf, output_pdf):
-    content = get_content(file_path)
+# =========================
+# BUILD FINAL PDF
+# =========================
+def build(file_path, letter_path):
+    text = get_content(file_path)
 
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+    temp_text = os.path.join(tempfile.gettempdir(), f"text_{uuid.uuid4()}.pdf")
+    final_pdf = os.path.join(tempfile.gettempdir(), f"final_{uuid.uuid4()}.pdf")
 
-    create_content_pdf(content, temp_file)
-    merge_pdf(letterhead_pdf, temp_file, output_pdf)
+    create_pdf(text, temp_text)
+    merge_pdf(letter_path, temp_text, final_pdf)
 
-    os.remove(temp_file)
+    return final_pdf
 
 # =========================
-# UI FUNCTIONS
+# HOME ROUTE (ONLINE SAFE)
 # =========================
-def select_file():
-    path = filedialog.askopenfilename(filetypes=[("Documents", "*.pdf;*.docx")])
-    file_entry.delete(0, tk.END)
-    file_entry.insert(0, path)
+@app.route("/", methods=["GET", "POST"])
+def index():
 
-def select_letterhead():
-    path = filedialog.askopenfilename(filetypes=[("PDF Letterhead", "*.pdf")])
-    letter_entry.delete(0, tk.END)
-    letter_entry.insert(0, path)
+    if request.method == "POST":
+        file = request.files.get("file")
+        letter = request.files.get("letter")
 
-def generate():
-    file = file_entry.get()
-    letter = letter_entry.get()
+        if not file or not letter:
+            return "❌ Upload both file + letterhead"
 
-    if not file or not letter:
-        messagebox.showerror("Error", "Select file and letterhead")
-        return
+        file_path = os.path.join(tempfile.gettempdir(), file.filename)
+        letter_path = os.path.join(tempfile.gettempdir(), letter.filename)
 
-    output = filedialog.asksaveasfilename(defaultextension=".pdf")
+        file.save(file_path)
+        letter.save(letter_path)
 
-    try:
-        build_pdf(file, letter, output)
-        messagebox.showinfo("Success", "HEADEX Letter Generated!")
-    except Exception as e:
-        messagebox.showerror("Error", str(e))
+        output = build(file_path, letter_path)
+
+        # 👉 DIRECT OPEN PDF (NO PREVIEW PAGE)
+        return send_file(output, mimetype="application/pdf")
+
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>HEADEX ONLINE</title>
+        <style>
+            body{
+                background:#0f172a;
+                color:white;
+                text-align:center;
+                font-family:Arial;
+                padding:50px;
+            }
+            .box{
+                background:#1e293b;
+                padding:30px;
+                border-radius:10px;
+                width:400px;
+                margin:auto;
+            }
+            input,button{
+                margin:10px;
+            }
+            button{
+                padding:10px 20px;
+                background:#ef4444;
+                color:white;
+                border:none;
+                cursor:pointer;
+            }
+        </style>
+    </head>
+    <body>
+
+        <div class="box">
+            <h2>HEADEX ONLINE</h2>
+
+            <form method="POST" enctype="multipart/form-data">
+                <p>Upload Document</p>
+                <input type="file" name="file" required>
+
+                <p>Upload Letterhead PDF</p>
+                <input type="file" name="letter" required>
+
+                <br>
+                <button type="submit">GENERATE & OPEN PDF</button>
+            </form>
+        </div>
+
+    </body>
+    </html>
+    '''
 
 # =========================
-# MAIN WINDOW
+# RUN (RENDER / RAILWAY SUPPORT)
 # =========================
-root = tk.Tk()
-root.title("HEADEX - Center UI System")
-root.geometry("520x420")
-root.resizable(False, False)
-
-# =========================
-# BACKGROUND
-# =========================
-colors = ["#000814", "#001d3d", "#003566", "#001219"]
-i = 0
-
-def animate_bg():
-    global i
-    root.configure(bg=colors[i % len(colors)])
-    i += 1
-    root.after(1200, animate_bg)
-
-# =========================
-# CENTER CALC
-# =========================
-W = 520
-
-# =========================
-# UI (CENTERED)
-# =========================
-
-title = tk.Label(root,
-                 text="HEADEX LETTERHEAD SYSTEM",
-                 fg="white",
-                 bg="#000814",
-                 font=("Arial", 16, "bold"))
-title.place(x=W/2, y=20, anchor="center")
-
-file_entry = tk.Entry(root, width=40)
-file_entry.place(x=W/2, y=90, anchor="center")
-
-tk.Button(root, text="Browse File",
-          command=select_file).place(x=W/2, y=120, anchor="center")
-
-letter_entry = tk.Entry(root, width=40)
-letter_entry.place(x=W/2, y=170, anchor="center")
-
-tk.Button(root, text="Browse Letterhead",
-          command=select_letterhead).place(x=W/2, y=200, anchor="center")
-
-tk.Button(root,
-          text="GENERATE LETTER",
-          bg="#dc2626",
-          fg="white",
-          width=20,
-          command=generate).place(x=W/2, y=260, anchor="center")
-
-tk.Label(root,
-         text="Powered by CODIXCO",
-         fg="gray",
-         bg="#000814").place(x=W/2, y=330, anchor="center")
-
-# start animation
-animate_bg()
-
-root.mainloop()
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
