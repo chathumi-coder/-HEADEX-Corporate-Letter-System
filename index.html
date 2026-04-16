@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>HEADEX SYSTEM</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: #0f172a;
+    color: white;
+}
+
+.container {
+    width: 450px;
+    margin: 80px auto;
+    background: #111827;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+h2 {
+    text-align: center;
+    font: bold;
+}
+
+label {
+    font-size:20px;
+}
+
+input {
+    width: 100%;
+    margin-top: 8px;
+    margin-bottom: 15px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background: red;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background: darkred;
+}
+
+p{
+    font-size: smaller;
+    text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>HEADEX SYSTEM</h2>
+
+<form action="/generate" method="post" enctype="multipart/form-data">
+
+    <br><br><br>
+
+    <label>Select File (PDF / DOCX)</label>
+    <input type="file" name="file" required>
+
+    <br><br><br>
+
+    <label>Select Letterhead PDF</label>
+    <input type="file" name="letter" required>
+
+    <br><br><br>
+
+    <button type="submit">GENERATE PDF</button>
+
+    <br><br><br>
+
+    <p>HEADEX | POWERED BY CODIXCO @2026 </p>
+
+</form>
+
+</div>
+
+</body>
+</html>
